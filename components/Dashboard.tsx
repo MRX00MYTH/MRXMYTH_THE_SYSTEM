@@ -3,8 +3,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line
 } from 'recharts';
-import { useGame } from '../App';
-import { Shield, Target, Zap, TrendingUp, RefreshCw, Cpu, Flame, Skull, Activity, Binary } from 'lucide-react';
+import { useGame } from '../App.tsx';
+import { Shield, Target, Zap, TrendingUp, RefreshCw, Cpu, Flame, Skull, Activity, Binary, Info } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { state, syncData, dispatch } = useGame();
@@ -26,12 +26,10 @@ const Dashboard: React.FC = () => {
     }
   }, [state.lastEvent]);
 
-  // Daily Efficiency calculation for live display
   const currentEfficiency = state.tasksList.length > 0 
     ? Math.round((state.tasksList.filter(t => t.completed).length / state.tasksList.length) * 100) 
     : 100;
 
-  // Calculate current EXP earned today
   const currentExpEarned = state.tasksList.filter(t => t.completed).reduce((sum, t) => sum + t.expValue, 0);
 
   const chartData = useMemo(() => {
@@ -42,23 +40,12 @@ const Dashboard: React.FC = () => {
       Efficiency: h.efficiency
     }));
 
-    // If history is empty, add a baseline 'Start' point to prevent graph 'shrinking'
     if (mappedHistory.length === 0) {
-      mappedHistory.push({
-        name: 'Awakening',
-        EXP: 0,
-        Efficiency: 100
-      });
+      mappedHistory.push({ name: 'Awakening', EXP: 0, Efficiency: 100 });
     }
 
-    // Append current real-time data point
-    mappedHistory.push({
-      name: 'Now',
-      EXP: currentExpEarned,
-      Efficiency: currentEfficiency
-    });
-
-    return mappedHistory;
+    mappedHistory.push({ name: 'Now', EXP: currentExpEarned, Efficiency: currentEfficiency });
+    return mappedHistory.slice(-10);
   }, [state.analytics?.history, currentExpEarned, currentEfficiency]);
 
   const abilityData = useMemo(() => {
@@ -85,14 +72,8 @@ const Dashboard: React.FC = () => {
     }
   ];
 
-  const getFeedbackClasses = () => {
-    if (!activeFeedback || state.visualFeedbackStyle === 'none') return '';
-    if (activeFeedback === 'SYSTEM_SYNC') return 'animate-pulse ring-2 ring-emerald-500';
-    return activeFeedback === 'QUEST_FAILED' ? 'animate-shake ring-4 ring-rose-600 shadow-[0_0_50px_rgba(225,29,72,0.4)]' : 'animate-pulse ring-4 ring-sky-400 shadow-[0_0_50px_rgba(56,189,248,0.4)]';
-  };
-
   return (
-    <div className={`flex flex-col gap-8 mobile-centered transition-all duration-500 pb-12 ${getFeedbackClasses()}`}>
+    <div className="flex flex-col gap-8 mobile-centered transition-all duration-500 pb-12">
       {/* Header Panel */}
       <div className="status-window p-8 border-sky-500 relative bg-slate-900/60 overflow-hidden shadow-2xl">
         <div className="grid-bg opacity-10" />
@@ -108,87 +89,107 @@ const Dashboard: React.FC = () => {
               )}
             </div>
             <div className="flex items-center gap-4 mt-2">
-               <p className="text-slate-500 font-bold uppercase text-[10px] sm:text-xs tracking-[0.3em]">Player Protocol Field Logs | Target: {state.displayName}</p>
+               <p className="text-slate-500 font-bold uppercase text-[10px] sm:text-xs tracking-[0.3em]">Player Logs | Hunter: {state.displayName}</p>
                <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-800 border border-slate-700 text-[8px] font-black uppercase text-sky-400 italic">
-                 <Binary size={10} /> v3.5.3_live
+                 <Binary size={10} /> v3.6.0_STABLE
                </div>
             </div>
           </div>
           <button onClick={() => syncData()} className="w-full sm:w-auto p-4 bg-slate-800 border-2 border-sky-500 text-sky-400 text-xs font-black uppercase tracking-[0.2em] hover:bg-sky-500 hover:text-slate-950 transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)] active:scale-95 flex items-center justify-center gap-3 group">
-            <RefreshCw size={18} className="group-active:rotate-180 transition-transform duration-500" /> Sync Dimensional Data
+            <RefreshCw size={18} className="group-active:rotate-180 transition-transform duration-500" /> SYNC DIMENSIONAL VAULT
           </button>
         </div>
       </div>
 
-      {/* Stats Summary Panel */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsSummary.map((s, i) => (
-          <div key={i} className={`status-window p-6 dark:bg-slate-900/50 bg-white border-l-4 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 ${s.color === 'sky' ? 'border-sky-500' : s.color === 'rose' ? 'border-rose-500' : s.color === 'amber' ? 'border-amber-500' : 'border-emerald-500 shadow-[0_5px_15px_rgba(16,185,129,0.1)]'}`}>
-            {s.bonus && (
-              <div className="absolute top-0 right-0 px-3 py-1 bg-amber-500 text-slate-950 font-black italic text-[10px] skew-x-12 z-10 shadow-lg">
-                +{s.bonus}% BUFF
+      {/* Real-time Monitoring Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 grid grid-cols-2 gap-4">
+          {statsSummary.map((s, i) => (
+            <div key={i} className={`status-window p-6 dark:bg-slate-900/50 bg-white border-l-4 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 ${s.color === 'sky' ? 'border-sky-500' : s.color === 'rose' ? 'border-rose-500' : s.color === 'amber' ? 'border-amber-500' : 'border-emerald-500 shadow-[0_5px_15px_rgba(16,185,129,0.1)]'}`}>
+              <div className="flex justify-between items-start mb-2">
+                <div className="p-2 bg-slate-100 dark:bg-slate-800 w-fit border border-slate-200 dark:border-slate-700">{s.icon}</div>
+                {s.bonus && <span className="text-[8px] font-black bg-amber-500 text-slate-950 px-2 py-0.5 skew-x-12">+{s.bonus}% BUFF</span>}
               </div>
-            )}
-            <div className="mb-4 p-3 bg-slate-100 dark:bg-slate-800 w-fit border border-slate-200 dark:border-slate-700">{s.icon}</div>
-            <div className="text-3xl sm:text-4xl font-black italic leading-none tracking-tighter dark:text-white text-slate-900 tabular-nums">{s.value}</div>
-            <div className="text-[12px] uppercase font-black text-slate-500 mt-1 tracking-widest">{s.label}</div>
-            <div className={`text-[10px] uppercase font-black italic mt-1.5 ${s.bonus ? 'text-amber-500' : 'text-slate-400'}`}>{s.sub}</div>
+              <div className="text-3xl font-black italic leading-none tracking-tighter dark:text-white text-slate-900 tabular-nums">{s.value}</div>
+              <div className="text-[10px] uppercase font-black text-slate-500 mt-1 tracking-widest">{s.label}</div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="status-window p-6 bg-slate-950 border-sky-400/30 flex flex-col justify-between">
+          <div className="flex items-center gap-3 mb-4">
+            <Activity className="text-emerald-500 animate-pulse" size={18} />
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-white italic">Live Mana Flow</h4>
           </div>
-        ))}
+          <div className="flex-1 flex flex-col justify-end gap-1">
+            <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-500 mb-1">
+              <span>Integrity</span>
+              <span className="text-emerald-500">Nominal</span>
+            </div>
+            <div className="flex items-end gap-[2px] h-20">
+               {[40, 60, 45, 80, 55, 90, 75, 100, 85, 95].map((h, i) => (
+                 <div key={i} className="flex-1 bg-sky-500/20 relative">
+                   <div className="absolute bottom-0 left-0 right-0 bg-sky-500 animate-pulse" style={{ height: `${h}%`, animationDelay: `${i * 0.1}s` }} />
+                 </div>
+               ))}
+            </div>
+          </div>
+          <p className="text-[8px] uppercase font-bold text-slate-600 italic mt-4">Continuous field data verified via The Architect's protocol.</p>
+        </div>
       </div>
 
-      {/* Analytics Trend Area */}
+      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="status-window p-8 dark:bg-slate-900/50 bg-white border-sky-500 h-[450px] flex flex-col shadow-xl">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-sm font-black uppercase tracking-[0.3em] italic flex items-center gap-3 dark:text-white text-slate-900">
-              <TrendingUp size={20} className="text-sky-400" /> Evolution Trend
+        <div className="status-window p-8 dark:bg-slate-900/50 bg-white border-sky-500 h-[400px] flex flex-col shadow-xl">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xs font-black uppercase tracking-[0.3em] italic flex items-center gap-3 dark:text-white text-slate-900">
+              <TrendingUp size={16} className="text-sky-400" /> Evolution Path
             </h3>
-            <div className="px-3 py-1 bg-sky-500/10 border border-sky-500 text-[9px] font-black uppercase italic text-sky-400">EXP & Efficiency Analysis</div>
+            <div className="flex items-center gap-2 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-[8px] font-black uppercase italic text-emerald-400 animate-pulse">
+              <Activity size={10} /> Live Data Feed
+            </div>
           </div>
           <div className="flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke={state.theme === 'dark' ? "#334155" : "#cbd5e1"} vertical={false} />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} padding={{ left: 10, right: 10 }} />
-                <YAxis yAxisId="left" stroke="#38bdf8" fontSize={10} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={10} axisLine={false} tickLine={false} />
+                <XAxis dataKey="name" stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} />
+                <YAxis stroke="#64748b" fontSize={10} axisLine={false} tickLine={false} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: state.theme === 'dark' ? '#0f172a' : '#ffffff', border: '2px solid #38bdf8', borderRadius: '0', fontFamily: 'Rajdhani', fontWeight: 'bold' }} 
-                  itemStyle={{ fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: state.theme === 'dark' ? '#020617' : '#ffffff', border: '2px solid #38bdf8', borderRadius: '0', fontFamily: 'Rajdhani', fontWeight: 'bold' }} 
                 />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                <Line yAxisId="left" type="monotone" dataKey="EXP" stroke={COLORS.exp} strokeWidth={4} dot={{ r: 5, fill: COLORS.exp, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} animationDuration={1000} />
-                <Line yAxisId="right" type="monotone" dataKey="Efficiency" stroke={COLORS.efficiency} strokeWidth={4} dot={{ r: 5, fill: COLORS.efficiency, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} animationDuration={1000} />
+                <Line type="monotone" dataKey="EXP" stroke={COLORS.exp} strokeWidth={3} dot={{ r: 4, fill: COLORS.exp }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="status-window p-8 dark:bg-slate-900/50 bg-white border-sky-500 h-[450px] flex flex-col shadow-xl">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-sm font-black uppercase tracking-[0.3em] italic flex items-center gap-3 dark:text-white text-slate-900">
-              <Cpu size={20} className="text-sky-400" /> Ability Distribution
+        <div className="status-window p-8 dark:bg-slate-900/50 bg-white border-sky-500 h-[400px] flex flex-col shadow-xl">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xs font-black uppercase tracking-[0.3em] italic flex items-center gap-3 dark:text-white text-slate-900">
+              <Cpu size={16} className="text-sky-400" /> Ability Distribution
             </h3>
-            <div className="px-3 py-1 bg-sky-500/10 border border-sky-500 text-[9px] font-black uppercase italic text-sky-400">Core Stat Resonance</div>
+            <div className="flex items-center gap-2 px-2 py-0.5 bg-sky-500/10 border border-sky-500/30 text-[8px] font-black uppercase italic text-sky-400">
+              <Info size={10} /> Core Resonance
+            </div>
           </div>
-          <div className="flex-1 relative">
+          <div className="flex-1">
             {abilityData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={abilityData} innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value" stroke="none">
+                  <Pie data={abilityData} innerRadius={70} outerRadius={90} paddingAngle={5} dataKey="value" stroke="none">
                     {abilityData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ backgroundColor: state.theme === 'dark' ? '#0f172a' : '#ffffff', border: '2px solid #38bdf8', borderRadius: '0', fontFamily: 'Rajdhani', fontWeight: 'bold' }}
+                    contentStyle={{ backgroundColor: state.theme === 'dark' ? '#020617' : '#ffffff', border: '2px solid #38bdf8', borderRadius: '0', fontFamily: 'Rajdhani', fontWeight: 'bold' }}
                   />
-                  <Legend verticalAlign="bottom" height={36} iconType="diamond" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }} />
+                  <Legend verticalAlign="bottom" height={36} iconType="diamond" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-4">
-                <Binary size={64} className="opacity-20 animate-pulse" />
-                <span className="text-xs uppercase font-black italic tracking-widest text-slate-500">Initial Stat Check Pending...</span>
+              <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-4 opacity-30">
+                <Binary size={48} className="animate-pulse" />
+                <span className="text-[10px] uppercase font-black italic tracking-widest">Awaiting Resonance Data...</span>
               </div>
             )}
           </div>

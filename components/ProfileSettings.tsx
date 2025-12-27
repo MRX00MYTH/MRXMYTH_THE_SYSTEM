@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useGame } from '../App';
-import { getInitialState, RANK_THRESHOLDS } from '../constants';
-import { calculateRank, getLevelThreshold } from '../services/gameLogic';
-import { systemAudio } from '../services/audioService';
+import { useGame } from '../App.tsx';
+import { getInitialState, RANK_THRESHOLDS } from '../constants.ts';
+import { calculateRank, getLevelThreshold } from '../services/gameLogic.ts';
+import { systemAudio } from '../services/audioService.ts';
 import { 
   Save, Moon, Sun, 
   AlertTriangle, Monitor,

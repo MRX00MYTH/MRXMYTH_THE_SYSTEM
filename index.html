@@ -11,13 +11,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="The System">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#020617">
-    
-    <!-- Privacy Header -->
-    <meta name="referrer" content="no-referrer">
+    <meta name="theme-color" content="#020202">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Babel for on-the-fly TSX transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -25,9 +26,10 @@
           extend: {
             colors: {
               system: {
-                bg: 'var(--bg-color)',
-                text: 'var(--text-color)',
-                border: 'var(--border-color)',
+                bg: '#020202',
+                panel: '#0a0a0f',
+                accent: '#38bdf8',
+                hazard: '#f43f5e'
               }
             },
             animation: {
@@ -36,17 +38,17 @@
               'fade-in': 'fade-in 0.4s ease-out forwards',
               'slide-up': 'slide-up 0.3s ease-out forwards',
               'pulse-fast': 'pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'scan': 'scan 2s linear infinite',
+              'scan': 'scan 8s linear infinite',
               'portal-spin': 'portal-spin 10s linear infinite',
               'float': 'float 3s ease-in-out infinite',
             },
             keyframes: {
               glitch: {
                 '0%': { transform: 'translate(0)' },
-                '20%': { transform: 'translate(-3px, 3px)' },
-                '40%': { transform: 'translate(-3px, -3px)' },
-                '60%': { transform: 'translate(3px, 3px)' },
-                '80%': { transform: 'translate(3px, -3px)' },
+                '20%': { transform: 'translate(-2px, 2px)' },
+                '40%': { transform: 'translate(-2px, -2px)' },
+                '60%': { transform: 'translate(2px, 2px)' },
+                '80%': { transform: 'translate(2px, -2px)' },
                 '100%': { transform: 'translate(0)' },
               },
               shake: {
@@ -55,27 +57,11 @@
                 '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
                 '40%, 60%': { transform: 'translate3d(4px, 0, 0)' },
               },
-              'fade-in': {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              'slide-up': {
-                '0%': { transform: 'translateY(15px)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' },
-              },
-              scan: {
-                '0%': { top: '0%' },
-                '100%': { top: '100%' }
-              },
-              'portal-spin': {
-                '0%': { transform: 'rotate(0deg) scale(1)' },
-                '50%': { transform: 'rotate(180deg) scale(1.1)' },
-                '100%': { transform: 'rotate(360deg) scale(1)' }
-              },
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-10px)' },
-              }
+              'fade-in': { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+              'slide-up': { '0%': { transform: 'translateY(10px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+              'portal-spin': { '0%': { transform: 'rotate(0deg) scale(1)' }, '50%': { transform: 'rotate(180deg) scale(1.05)' }, '100%': { transform: 'rotate(360deg) scale(1)' } },
+              'float': { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+              scan: { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100%)' } }
             }
           }
         }
@@ -83,21 +69,12 @@
     </script>
     <style>
         :root {
-            /* Frost Tactical Light Theme */
-            --bg-color: #f1f5f9;
-            --text-color: #1e293b;
-            --border-color: #0284c7;
-            --window-bg: #ffffff;
-            --neon-glow: rgba(2, 132, 199, 0.3);
-            --anim-speed: 1s;
-        }
-        .dark {
-            /* Void Dark Theme */
-            --bg-color: #020617;
+            --bg-color: #020202;
             --text-color: #f8fafc;
             --border-color: #38bdf8;
-            --window-bg: rgba(15, 23, 42, 0.95);
-            --neon-glow: rgba(56, 189, 248, 0.7);
+            --window-bg: rgba(5, 5, 8, 0.98);
+            --neon-glow: rgba(56, 189, 248, 0.5);
+            --anim-speed: 0.3s;
         }
         body {
             font-family: 'Rajdhani', sans-serif;
@@ -106,73 +83,58 @@
             margin: 0;
             overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
-            /* Fix for iOS momentum scrolling */
-            -webkit-overflow-scrolling: touch;
-        }
-        .page-transition {
-            animation: pageFade var(--anim-speed) ease-out forwards;
-        }
-        @keyframes pageFade {
-            0% { opacity: 0; transform: scale(0.98); filter: blur(10px); }
-            100% { opacity: 1; transform: scale(1); filter: blur(0); }
         }
         .status-window {
             background: var(--window-bg);
-            border: 2px solid var(--border-color);
-            clip-path: polygon(0 0, 97% 0, 100% 3%, 100% 100%, 3% 100%, 0 97%);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid var(--border-color);
+            clip-path: polygon(0 10px, 10px 0, 95% 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px));
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
+            position: relative;
         }
-        @media (max-width: 640px) {
-            .status-window {
-                clip-path: polygon(0 0, 94% 0, 100% 6%, 100% 100%, 6% 100%, 0 94%);
-            }
-            .mobile-centered {
-                max-width: 480px;
-                margin-left: auto;
-                margin-right: auto;
-            }
-        }
-        .neon-text {
-            text-shadow: 0 0 8px var(--neon-glow);
-        }
+        .neon-text { text-shadow: 0 0 10px var(--neon-glow); }
         .grid-bg {
-          position: absolute;
+          position: fixed;
           inset: 0;
-          background-image: linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
-          background-size: 30px 30px;
+          background-image: 
+            linear-gradient(to right, rgba(56, 189, 248, 0.03) 1px, transparent 1px), 
+            linear-gradient(to bottom, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+          background-size: 50px 50px;
           pointer-events: none;
+          z-index: -1;
+        }
+        .page-transition {
+          animation: fade-in 0.4s ease-out;
         }
         .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0,0,0,0.3);
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 10px;
-        }
-        .progress-fill-fixed {
-            transition: width 0.1s linear;
-        }
-        /* Mobile-friendly touch targets */
-        button, a, input, select {
-            min-height: 44px;
+          background: var(--border-color);
+          border-radius: 10px;
         }
     </style>
-<script type="importmap">
+    <script type="importmap">
 {
   "imports": {
-    "recharts": "https://esm.sh/recharts@^3.6.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "react-router-dom": "https://esm.sh/react-router-dom@7.1.1?external=react,react-dom",
+    "lucide-react": "https://esm.sh/lucide-react@0.469.0?external=react",
+    "recharts": "https://esm.sh/recharts@2.15.0?external=react,react-dom",
+    "@google/genai": "https://esm.sh/@google/genai@1.34.0",
+    "react/": "https://esm.sh/react@19.0.0/",
+    "react-dom/": "https://esm.sh/react-dom@19.0.0/"
   }
 }
 </script>
 </head>
-<body>
+<body class="dark bg-[#020202]">
     <div id="root"></div>
+    <div class="grid-bg"></div>
+    <script type="text/babel" data-type="module" src="index.tsx"></script>
 </body>
 </html>

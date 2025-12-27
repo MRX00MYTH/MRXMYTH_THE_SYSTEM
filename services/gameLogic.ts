@@ -1,6 +1,6 @@
 
-import { Rank } from '../types';
-import { RANK_THRESHOLDS } from '../constants';
+import { Rank } from '../types.ts';
+import { RANK_THRESHOLDS } from '../constants.ts';
 
 /**
  * Calculates the EXP required to reach the next level.

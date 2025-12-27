@@ -1,9 +1,9 @@
 
 import React, { useEffect } from 'react';
-import { useGame } from '../App';
-import { getLevelThreshold } from '../services/gameLogic';
+import { useGame } from '../App.tsx';
+import { getLevelThreshold } from '../services/gameLogic.ts';
 import { Shield, Zap, TrendingUp, User, Star, Layers, PlusCircle, Target } from 'lucide-react';
-import { AppState } from '../types';
+import { AppState } from '../types.ts';
 
 const LevelView: React.FC = () => {
   const { state, dispatch } = useGame();

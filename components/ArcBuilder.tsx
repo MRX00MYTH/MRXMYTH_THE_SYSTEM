@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, CheckCircle2, Clock, Layers, ChevronDown, Flame, Zap, Activity, Brain, User, Sparkles, Wind, Play, Pause, RotateCcw, Award, Binary, Lock, Edit3, X, Hourglass } from 'lucide-react';
-import { useGame } from '../App';
-import { generateId } from '../services/gameLogic';
-import { TaskType, Task, TaskCategory, TaskDifficulty } from '../types';
-import { systemAudio } from '../services/audioService';
+import { useGame } from '../App.tsx';
+import { generateId } from '../services/gameLogic.ts';
+import { TaskType, Task, TaskCategory, TaskDifficulty } from '../types.ts';
+import { systemAudio } from '../services/audioService.ts';
 
 const ArcBuilder: React.FC = () => {
   const { state, dispatch, completeTask, updateTaskProgress, toggleTimer, addNotification } = useGame();
@@ -379,4 +379,4 @@ const TaskCard: React.FC<{ task: Task; streak: number; onComplete: () => void; o
   );
 };
 
-export default ArcBuilder;
+export default TaskCard;

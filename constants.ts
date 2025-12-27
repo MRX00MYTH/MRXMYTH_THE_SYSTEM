@@ -1,5 +1,5 @@
 
-import { Rank, AppState } from './types';
+import { Rank, AppState } from './types.ts';
 
 export const RANK_MODIFIERS: Record<Rank, number> = {
   'E': 1.0, 'D': 1.1, 'C': 1.25, 'B': 1.5, 'A': 2.0, 'S': 3.0, 'SS': 5.0,

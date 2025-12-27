@@ -29,36 +29,26 @@ const saveToLocalRegistry = (username: string, passwordHash: string) => {
   localStorage.setItem(LOCAL_REGISTRY, JSON.stringify(registry));
 };
 
-/**
- * Heuristic Merge Logic
- * Compares incoming cloud data with local data and picks the one with 
- * more progression (higher level, more EXP, or newer timestamps).
- */
 const mergeState = (local: AppState, remote: any): AppState => {
   if (!remote) return local;
   
-  // Progression weight: Higher level or EXP usually wins
-  const localWeight = (local.level * 10000) + (local.cumulativeEXP || 0);
-  const remoteWeight = ((remote.level || 1) * 10000) + (remote.cumulativeEXP || 0);
+  // Rule: Choose the one with higher cumulative EXP or more stat points
+  const remoteExp = remote.cumulativeEXP || 0;
+  const localExp = local.cumulativeEXP || 0;
   
-  const isRemoteAdvanced = remoteWeight > localWeight;
-  
+  const useRemote = remoteExp > localExp;
+
   const merged: AppState = {
     ...local,
     ...remote,
-    // Deep merge stats to ensure no partial wipes
-    stats: {
-      ...local.stats,
-      ...(remote.stats || {})
-    },
-    // Keep the most comprehensive task history if remote is advanced
-    tasksList: isRemoteAdvanced ? (remote.tasksList || local.tasksList) : (local.tasksList || []),
-    // Ensure titles are additive (never lose a title)
+    level: Math.max(local.level, remote.level || 1),
+    rank: useRemote ? (remote.rank || 'E') : local.rank,
+    cumulativeEXP: Math.max(local.cumulativeEXP, remote.cumulativeEXP || 0),
+    totalEXP: useRemote ? (remote.totalEXP || 0) : local.totalEXP,
+    statPoints: useRemote ? (remote.statPoints || 0) : local.statPoints,
+    stats: useRemote ? (remote.stats || local.stats) : local.stats,
     titlesUnlocked: Array.from(new Set([...(local.titlesUnlocked || []), ...(remote.titlesUnlocked || [])])),
-    // Notification merging: Deduplicate by ID
-    notifications: [...(remote.notifications || []), ...(local.notifications || [])]
-      .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
-      .slice(0, 50)
+    tasksList: useRemote ? (remote.tasksList || local.tasksList) : (local.tasksList || []),
   };
 
   return merged;
@@ -74,14 +64,11 @@ const cloudFetch = async (url: string, options?: RequestInit, retries = 2): Prom
       }
     });
     
-    // KVDB returns 404 for keys that don't exist; we treat this as "no remote data" not an error
     if (response.status === 404) return response;
-    
-    if (!response.ok && retries > 0) throw new Error(`HTTP Error: ${response.status}`);
+    if (!response.ok && retries > 0) throw new Error(`Link Unstable: ${response.status}`);
     return response;
   } catch (err) {
     if (retries > 0) {
-      // Exponential backoff
       await new Promise(r => setTimeout(r, 1000 * (3 - retries)));
       return cloudFetch(url, options, retries - 1);
     }
@@ -92,10 +79,8 @@ const cloudFetch = async (url: string, options?: RequestInit, retries = 2): Prom
 export const saveState = async (username: string, state: AppState) => {
   if (!username) return;
   try {
-    // Immediate Local Sync
     localStorage.setItem(`state_${username}`, JSON.stringify(state));
     
-    // Background Cloud Sync
     if (navigator.onLine) {
       const data = obfuscate(state);
       await cloudFetch(`${CLOUD_API}${username}_state_v3`, { 
@@ -105,7 +90,7 @@ export const saveState = async (username: string, state: AppState) => {
       });
     }
   } catch (err) {
-    console.warn("[THE SYSTEM] Mana sync delayed. Dimensional link unstable.");
+    console.warn("[THE SYSTEM] Dimensional link interrupted. Saving to Local Mirror.");
   }
 };
 
@@ -126,7 +111,7 @@ export const loadState = async (username: string): Promise<AppState> => {
       }
     }
   } catch (err) {
-    console.warn("[THE SYSTEM] Operating in Offline Mirror mode.");
+    console.warn("[THE SYSTEM] Vault inaccessible. Reverting to Local Mirror.");
   }
 
   return local;
@@ -136,7 +121,6 @@ export const cloudAuth = {
   async signup(username: string, passwordHash: string): Promise<boolean> {
     try {
       if (navigator.onLine) {
-        // Check if user already exists in the cloud
         const check = await cloudFetch(`${CLOUD_API}${username}_auth_v3`);
         if (check.ok && check.status !== 404) return false; 
 
@@ -168,7 +152,6 @@ export const cloudAuth = {
       }
     } catch {}
 
-    // Fallback to local registry if offline or cloud check failed
     if (localReg[username] === passwordHash) {
       return { id: `hunter-${username}`, username, passwordHash };
     }

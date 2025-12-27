@@ -29,6 +29,7 @@ export interface Reminder {
   message: string;
   targetTime: number;
   triggered: boolean;
+  createdAt: number;
 }
 
 export interface AnalyticsEntry {
