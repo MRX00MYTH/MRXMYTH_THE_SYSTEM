@@ -1,170 +1,221 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Plus, 
-  Trash2, 
-  Play, 
-  Square, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  Layers, 
-  ChevronDown,
-  Info,
-  Lock,
-  Tag
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, CheckCircle2, Clock, Layers, ChevronDown, Flame, Zap, Activity, Brain, User, Sparkles, Wind, Play, Pause, RotateCcw, Award, Binary, Lock, Edit3, X, Hourglass } from 'lucide-react';
 import { useGame } from '../App';
 import { generateId } from '../services/gameLogic';
-import { TaskType, Task, TaskCategory } from '../types';
+import { TaskType, Task, TaskCategory, TaskDifficulty } from '../types';
+import { systemAudio } from '../services/audioService';
 
 const ArcBuilder: React.FC = () => {
-  const { state, dispatch, completeTask, failTask, updateTaskProgress } = useGame();
+  const { state, dispatch, completeTask, updateTaskProgress, toggleTimer, addNotification } = useGame();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<TaskType>('checkbox');
+  const [newDifficulty, setNewDifficulty] = useState<TaskDifficulty>('Normal');
   const [newCategory, setNewCategory] = useState<TaskCategory>('Personal');
   const [newReps, setNewReps] = useState(10);
   const [newDuration, setNewDuration] = useState(30);
-
-  const categories: TaskCategory[] = ['Physical Health', 'Mental Health', 'Personal', 'Skill', 'Spiritual'];
+  const [newBaseExp, setNewBaseExp] = useState(30);
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName) return;
-
-    const now = new Date().toISOString();
-    // Balanced XP rewards for E Rank: Checkbox=15, Reps=30, Duration=60 (Scale up to 100 later)
-    const expMap = { checkbox: 15, reps: 30, duration: 60 };
-    
     const newTask: Task = {
       id: generateId(),
       name: newName,
       type: newType,
+      difficulty: newDifficulty,
       category: newCategory,
       repsTarget: newReps,
       repsDone: 0,
       durationMinutes: newDuration,
+      remainingSeconds: newDuration * 60,
       timerState: 'idle',
       repeat: 'daily',
-      expValue: expMap[newType],
-      finalEXP: 0,
+      expValue: newBaseExp,
       completed: false,
       state: 'normal',
-      lastUpdated: now,
-      createdAt: now
+      lastUpdated: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
-
     dispatch({ type: 'ADD_TASK', payload: newTask });
     setNewName('');
     setShowAddForm(false);
   };
 
+  const handleUpdateTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+
+    if (editingTask.type === 'reps' && newReps < editingTask.repsTarget) {
+      addNotification("RESTRICTION: Directive intensity cannot be reduced.", "error");
+      return;
+    }
+    if (editingTask.type === 'duration' && newDuration < editingTask.durationMinutes) {
+      addNotification("RESTRICTION: Protocol duration cannot be shortened.", "error");
+      return;
+    }
+
+    const updates: Partial<Task> = {
+      category: newCategory,
+      repsTarget: newReps,
+      durationMinutes: newDuration,
+      remainingSeconds: editingTask.timerState === 'idle' ? newDuration * 60 : editingTask.remainingSeconds,
+      lastUpdated: new Date().toISOString()
+    };
+
+    dispatch({ 
+      type: 'UPDATE_TASK', 
+      payload: { id: editingTask.id, updates } 
+    });
+    
+    setEditingTask(null);
+    addNotification("Quest Log synchronized. Higher stakes detected.", "success");
+  };
+
+  const openEditModal = (task: Task) => {
+    setEditingTask(task);
+    setNewCategory(task.category);
+    setNewReps(task.repsTarget);
+    setNewDuration(task.durationMinutes);
+  };
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 mobile-centered animate-fade-in">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter neon-text mb-1 dark:text-white text-slate-900">Quest Log</h1>
-          <p className="opacity-60 font-medium tracking-widest uppercase text-xs">Register your daily objectives</p>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter neon-text">Quest Log</h1>
+          {state.streak >= 3 && (
+            <div className={`px-3 py-1.5 border-2 flex items-center gap-2 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.2)] ${state.streak >= 7 ? 'border-amber-500 text-amber-500 bg-amber-500/10' : 'border-sky-500 text-sky-400 bg-sky-500/10'}`}>
+               <Flame size={14} fill="currentColor" />
+               <span className="text-xs font-black italic tracking-widest">{state.streak >= 7 ? '10%' : '5%'} EXP BUFF</span>
+            </div>
+          )}
         </div>
-        <button 
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="p-4 bg-sky-500 hover:bg-sky-400 transition-colors text-slate-950 font-black flex items-center gap-2 uppercase tracking-tighter shadow-lg"
-        >
-          {showAddForm ? <ChevronDown /> : <Plus />}
-          Commence New Objective
+        <button onClick={() => setShowAddForm(!showAddForm)} className="p-4 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black flex items-center gap-3 uppercase text-sm tracking-widest shadow-[0_4px_20px_rgba(56,189,248,0.4)] transition-all active:scale-95">
+          {showAddForm ? <ChevronDown /> : <Plus />} Initialize Directive
         </button>
       </div>
 
       {showAddForm && (
-        <div className="status-window p-8 dark:bg-slate-900 bg-white border-2 border-sky-400 animate-in fade-in slide-in-from-top duration-300">
+        <div className="status-window p-8 bg-slate-900 border-sky-400 animate-slide-up shadow-2xl">
           <form onSubmit={handleAddTask} className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase font-bold text-sky-400">Objective Name</label>
-                <input 
-                  type="text" 
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  placeholder="e.g. 100 Pushups"
-                  className="bg-slate-800 dark:bg-slate-800 bg-slate-100 border border-sky-500/30 p-3 text-slate-900 dark:text-white focus:border-sky-400 outline-none"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase font-bold text-sky-400">Task Category</label>
-                <select 
-                  value={newCategory}
-                  onChange={e => setNewCategory(e.target.value as TaskCategory)}
-                  className="bg-slate-800 dark:bg-slate-800 bg-slate-100 border border-sky-500/30 p-3 text-slate-900 dark:text-white focus:border-sky-400 outline-none uppercase font-bold"
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+            <div className="space-y-2">
+              <label className="text-xs uppercase font-black text-sky-500 tracking-widest">Protocol Codename</label>
+              <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Objective Designation..." className="w-full bg-slate-800 border-2 border-sky-500/30 p-4 text-white outline-none font-bold italic placeholder:text-slate-600 focus:border-sky-400 transition-colors" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-xs uppercase font-black text-sky-500 tracking-widest">Field Category</label>
+                <select value={newCategory} onChange={e => setNewCategory(e.target.value as TaskCategory)} className="w-full bg-slate-800 border-2 border-sky-500/30 p-4 text-sky-400 uppercase font-black text-xs outline-none">
+                  {['Physical Health', 'Mental Health', 'Personal', 'Skill', 'Spiritual'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs uppercase font-bold text-sky-400">Task Type</label>
-                <div className="flex gap-2">
-                  {(['checkbox', 'reps', 'duration'] as TaskType[]).map(t => (
-                    <button 
-                      key={t}
-                      type="button"
-                      onClick={() => setNewType(t)}
-                      className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest border transition-all ${newType === t ? 'bg-sky-500 border-sky-500 text-slate-950 shadow-[0_0_10px_rgba(56,189,248,0.4)]' : 'border-sky-500/30 text-sky-400'}`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
+              <div className="space-y-2">
+                <label className="text-xs uppercase font-black text-sky-500 tracking-widest">Hazard Level</label>
+                <select value={newDifficulty} onChange={e => setNewDifficulty(e.target.value as TaskDifficulty)} className="w-full bg-slate-800 border-2 border-sky-500/30 p-4 text-sky-400 uppercase font-black text-xs outline-none">
+                  {['Easy', 'Normal', 'Hard'].map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
               </div>
-              
-              {newType === 'reps' && (
-                <div className="flex flex-col gap-2 animate-in fade-in duration-300">
-                  <label className="text-xs uppercase font-bold text-sky-400">Repetition Goal</label>
-                  <input 
-                    type="number" 
-                    value={newReps}
-                    onChange={e => setNewReps(parseInt(e.target.value) || 0)}
-                    className="bg-slate-800 dark:bg-slate-800 bg-slate-100 border border-sky-500/30 p-3 text-slate-900 dark:text-white focus:border-sky-400 outline-none"
-                  />
-                </div>
-              )}
-
-              {newType === 'duration' && (
-                <div className="flex flex-col gap-2 animate-in fade-in duration-300">
-                  <label className="text-xs uppercase font-bold text-sky-400">Duration (Minutes)</label>
-                  <input 
-                    type="number" 
-                    value={newDuration}
-                    onChange={e => setNewDuration(parseInt(e.target.value) || 0)}
-                    className="bg-slate-800 dark:bg-slate-800 bg-slate-100 border border-sky-500/30 p-3 text-slate-900 dark:text-white focus:border-sky-400 outline-none"
-                  />
-                </div>
-              )}
             </div>
-            <button type="submit" className="mt-4 p-4 bg-slate-800 dark:bg-slate-800 bg-slate-100 border border-sky-500 text-sky-400 font-bold uppercase tracking-widest hover:bg-sky-500 hover:text-slate-950 transition-all">
-              Register Quest
-            </button>
+
+            <div className="space-y-2">
+              <label className="text-xs uppercase font-black text-sky-500 tracking-widest">Directive Type</label>
+              <div className="flex gap-3">
+                {(['checkbox', 'reps', 'duration'] as TaskType[]).map(t => (
+                  <button key={t} type="button" onClick={() => setNewType(t)} className={`flex-1 py-4 text-xs font-black uppercase border-2 transition-all ${newType === t ? 'bg-sky-500 text-slate-950 border-sky-500 shadow-[0_0_20px_rgba(56,189,248,0.4)]' : 'border-sky-500/30 text-sky-400 hover:bg-sky-500/10'}`}>{t}</button>
+                ))}
+              </div>
+            </div>
+
+            {newType === 'reps' && (
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-xs uppercase font-black text-sky-500 tracking-widest">Iteration Threshold (Reps)</label>
+                <input type="number" value={newReps} onChange={e => setNewReps(parseInt(e.target.value) || 0)} className="w-full bg-slate-800 border-2 border-sky-500/30 p-4 text-white outline-none font-black italic" />
+              </div>
+            )}
+
+            {newType === 'duration' && (
+              <div className="space-y-2 animate-fade-in">
+                <label className="text-xs uppercase font-black text-sky-500 tracking-widest">Flow Required (Minutes)</label>
+                <input type="number" value={newDuration} onChange={e => setNewDuration(parseInt(e.target.value) || 1)} className="w-full bg-slate-800 border-2 border-sky-500/30 p-4 text-white outline-none font-black italic" />
+              </div>
+            )}
+
+            <button type="submit" className="p-5 bg-slate-800 border-2 border-sky-500 text-sky-400 font-black uppercase tracking-[0.3em] text-sm hover:bg-sky-500 hover:text-slate-950 transition-all shadow-[0_0_30px_rgba(56,189,248,0.2)]">Execute Protocol Integration</button>
           </form>
         </div>
       )}
 
-      <div className="flex flex-col gap-4">
+      {editingTask && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-8 animate-fade-in bg-slate-950/90 backdrop-blur-sm">
+          <div className="status-window max-w-lg w-full p-8 bg-slate-900 border-sky-500 shadow-2xl relative">
+            <button onClick={() => setEditingTask(null)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">
+              <X size={24} />
+            </button>
+            <h2 className="text-2xl font-black uppercase italic tracking-tighter text-sky-400 mb-6 flex items-center gap-3">
+              <Edit3 size={24} /> Evolution Protocol
+            </h2>
+            
+            <form onSubmit={handleUpdateTask} className="space-y-6">
+              <div className="p-4 bg-sky-500/5 border border-sky-500/20 rounded-sm">
+                 <p className="text-[10px] font-bold text-sky-500/60 uppercase tracking-widest mb-1">Quest Designation</p>
+                 <p className="text-lg font-black italic text-white">{editingTask.name}</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs uppercase font-black text-sky-500 tracking-widest">Field Category</label>
+                <select value={newCategory} onChange={e => setNewCategory(e.target.value as TaskCategory)} className="w-full bg-slate-800 border-2 border-sky-500/30 p-3 text-sky-400 uppercase font-black text-xs outline-none">
+                  {['Physical Health', 'Mental Health', 'Personal', 'Skill', 'Spiritual'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              {editingTask.type === 'reps' && (
+                <div className="space-y-2">
+                  <label className="text-xs uppercase font-black text-sky-500 tracking-widest">Update Iterations (Min: {editingTask.repsTarget})</label>
+                  <input type="number" min={editingTask.repsTarget} value={newReps} onChange={e => setNewReps(parseInt(e.target.value) || 0)} className="w-full bg-slate-800 border-2 border-sky-500/30 p-3 text-white outline-none font-black italic" />
+                  <p className="text-[9px] text-slate-500 uppercase italic">Goal can only be increased as you grow stronger.</p>
+                </div>
+              )}
+
+              {editingTask.type === 'duration' && (
+                <div className="space-y-2">
+                  <label className="text-xs uppercase font-black text-sky-500 tracking-widest">Update Flow Duration (Min: {editingTask.durationMinutes}m)</label>
+                  <input type="number" min={editingTask.durationMinutes} value={newDuration} onChange={e => setNewDuration(parseInt(e.target.value) || 1)} className="w-full bg-slate-800 border-2 border-sky-500/30 p-3 text-white outline-none font-black italic" />
+                  <p className="text-[9px] text-slate-500 uppercase italic">Flow threshold can only be expanded.</p>
+                </div>
+              )}
+
+              <div className="flex gap-4 pt-4">
+                <button type="submit" className="flex-1 py-4 bg-sky-600 text-white font-black uppercase text-xs tracking-widest hover:bg-sky-500 transition-all shadow-lg active:scale-95">Update Directive</button>
+                <button type="button" onClick={() => setEditingTask(null)} className="flex-1 py-4 border-2 border-slate-700 text-slate-400 font-black uppercase text-xs tracking-widest hover:text-white hover:border-slate-500 transition-all">Abort Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-5">
         {state.tasksList.length === 0 ? (
-          <div className="status-window p-12 text-center opacity-50">
-            <Layers size={48} className="mx-auto mb-4" />
-            <h2 className="text-2xl font-bold uppercase italic">No active quests detected</h2>
+          <div className="status-window p-16 text-center border-dashed border-sky-900/50 bg-slate-900/20">
+            <Binary size={64} className="mx-auto mb-6 text-slate-800 animate-pulse" />
+            <h3 className="text-2xl font-black italic uppercase tracking-widest text-slate-700">No Active field Data</h3>
+            <p className="text-xs uppercase font-bold text-slate-800 mt-2">Initialize a directive to begin growth</p>
           </div>
         ) : (
           state.tasksList.map(task => (
             <TaskCard 
               key={task.id} 
               task={task} 
-              onComplete={() => completeTask(task.id)}
-              onFail={() => failTask(task.id)}
-              onProgress={(v) => updateTaskProgress(task.id, v)}
-              onDelete={() => dispatch({ type: 'DELETE_TASK', payload: task.id })}
+              streak={state.streak}
+              onComplete={() => completeTask(task.id)} 
+              onProgress={(p) => updateTaskProgress(task.id, p)}
+              onToggleTimer={() => toggleTimer(task.id)}
+              onEdit={() => openEditModal(task)}
+              onDelete={() => dispatch({ type: 'DELETE_TASK', payload: task.id })} 
             />
           ))
         )}
@@ -173,59 +224,155 @@ const ArcBuilder: React.FC = () => {
   );
 };
 
-const TaskCard: React.FC<{ task: Task; onComplete: () => void; onFail: () => void; onProgress: (v: number) => void; onDelete: () => void; }> = ({ task, onComplete, onFail, onProgress, onDelete }) => {
-  const [timeLeft, setTimeLeft] = useState(task.durationMinutes * 60);
-  const [isRunning, setIsRunning] = useState(false);
-  const [canDelete, setCanDelete] = useState(true);
-  const timerRef = useRef<number | null>(null);
+const TaskCard: React.FC<{ task: Task; streak: number; onComplete: () => void; onProgress: (p: number) => void; onToggleTimer: () => void; onEdit: () => void; onDelete: () => void; }> = ({ task, streak, onComplete, onProgress, onToggleTimer, onEdit, onDelete }) => {
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockCountdown, setLockCountdown] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkExpiry = () => {
-      const created = new Date(task.createdAt || task.lastUpdated).getTime();
-      setCanDelete(Date.now() - created < 5 * 60 * 1000);
+    const updateLockState = () => {
+      const lockThreshold = 5 * 60 * 1000; 
+      const elapsed = Date.now() - new Date(task.createdAt).getTime();
+      const remaining = Math.max(0, lockThreshold - elapsed);
+      
+      if (remaining === 0) {
+        setIsLocked(true);
+        setLockCountdown(null);
+      } else {
+        setIsLocked(false);
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        setLockCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+      }
     };
-    checkExpiry();
-    const interval = setInterval(checkExpiry, 10000);
-    return () => clearInterval(interval);
-  }, [task.createdAt, task.lastUpdated]);
 
-  useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      timerRef.current = window.setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    } else if (timeLeft === 0) {
-      setIsRunning(false);
-      onComplete();
+    updateLockState();
+    const interval = setInterval(updateLockState, 1000);
+    return () => clearInterval(interval);
+  }, [task.createdAt]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getIcon = (cat: TaskCategory) => {
+    switch (cat) {
+      case 'Physical Health': return <Activity size={18} className="text-emerald-500" />;
+      case 'Mental Health': return <Brain size={18} className="text-purple-500" />;
+      case 'Skill': return <Sparkles size={18} className="text-amber-500" />;
+      case 'Spiritual': return <Wind size={18} className="text-rose-500" />;
+      default: return <User size={18} className="text-sky-500" />;
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isRunning, timeLeft, onComplete]);
+  };
+
+  const handleRepInc = () => {
+    const next = task.repsDone + 1;
+    systemAudio.play('click');
+    if (next >= task.repsTarget) onComplete();
+    else onProgress(next);
+  };
+
+  let multiplier = 1.0;
+  if (streak >= 7) multiplier = 1.10;
+  else if (streak >= 3) multiplier = 1.05;
+  const effectiveExp = Math.floor(task.expValue * multiplier);
+
+  // Hardened Logic: A task cannot be deleted if completed OR 5 minutes is over
+  const canDelete = !task.completed && !isLocked;
 
   return (
-    <div className={`status-window p-6 dark:bg-slate-900/80 bg-white/80 group transition-all relative overflow-hidden ${task.completed ? 'opacity-60 grayscale border-slate-500' : 'border-sky-500'}`}>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-        <div className="flex items-center gap-6">
-          <div className={`w-12 h-12 flex items-center justify-center border-2 ${task.completed ? 'border-emerald-500 text-emerald-500' : 'border-sky-500 text-sky-500'} transition-colors`}>
-            {task.type === 'checkbox' && <CheckCircle2 size={24} />}
-            {task.type === 'reps' && <Layers size={24} />}
-            {task.type === 'duration' && <Clock size={24} />}
+    <div className={`status-window p-5 sm:p-6 dark:bg-slate-900/90 bg-white border-sky-500 transition-all ${task.completed ? 'opacity-30 grayscale blur-[1px]' : 'hover:border-sky-400 hover:shadow-[0_0_20px_rgba(56,189,248,0.15)] active:scale-[0.99]'}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="flex items-center gap-6 flex-1 overflow-hidden">
+          <div className={`w-14 h-14 flex-shrink-0 flex items-center justify-center border-4 transition-all relative ${task.completed ? 'border-emerald-500 text-emerald-500' : 'border-sky-500 text-sky-400 shadow-[inset_0_0_15px_rgba(56,189,248,0.2)]'}`}>
+            {task.type === 'checkbox' ? <CheckCircle2 size={30} /> : task.type === 'reps' ? <Layers size={30} /> : <Clock size={30} className={task.timerState === 'running' ? 'animate-pulse' : ''} />}
+            {(isLocked || task.completed) && (
+              <div className="absolute -top-3 -left-3 bg-rose-600 text-white p-1 shadow-lg border border-slate-950">
+                {task.completed ? <Award size={12} /> : <Lock size={12} />}
+              </div>
+            )}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className={`text-xl font-bold uppercase tracking-tight italic ${task.completed ? 'text-slate-500' : 'dark:text-white text-slate-900'}`}>{task.name}</h3>
-              <span className="text-[10px] px-2 py-0.5 bg-sky-500/20 text-sky-400 border border-sky-500/30 font-bold uppercase tracking-widest">{task.category}</span>
+          <div className="overflow-hidden">
+            <div className="flex items-center gap-3 mb-1">
+              {getIcon(task.category)}
+              <h3 className="text-lg sm:text-xl font-black italic uppercase truncate dark:text-white text-slate-900 leading-tight tracking-tighter">{task.name}</h3>
             </div>
-            <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">+{task.expValue} EXP</span>
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className={`text-[9px] px-2 py-1 border-2 font-black uppercase tracking-widest ${task.difficulty === 'Hard' ? 'border-rose-500 text-rose-500 bg-rose-500/5' : task.difficulty === 'Normal' ? 'border-sky-500 text-sky-400 bg-sky-500/5' : 'border-emerald-500 text-emerald-500 bg-emerald-500/5'}`}>{task.difficulty}</span>
+              <span className="text-[11px] font-bold text-slate-500 italic uppercase">Goal: {task.type === 'reps' ? `${task.repsTarget} reps` : task.type === 'duration' ? `${task.durationMinutes}m flow` : 'clear directive'}</span>
+              
+              {!task.completed && (
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 border text-[9px] font-black uppercase tracking-widest italic ${isLocked ? 'border-rose-900 text-rose-500/70' : 'border-amber-500/30 text-amber-500 animate-pulse'}`}>
+                  {isLocked ? (
+                    <><Lock size={10} /> PROTOCOL HARDENED</>
+                  ) : (
+                    <><Hourglass size={10} /> LOCKING IN: {lockCountdown}</>
+                  )}
+                </div>
+              )}
+
+              <span className="text-[11px] font-black text-amber-500">
+                +{effectiveExp} EXP {multiplier > 1.0 && <span className="text-[9px] opacity-70">(+{Math.round((multiplier - 1) * 100)}% Streak)</span>}
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          {!task.completed && task.state === 'normal' && (
-            <>
-              {task.type === 'checkbox' && <button onClick={onComplete} className="p-3 bg-sky-500 text-slate-900 font-black uppercase text-xs shadow-md hover:scale-105 transition-transform">Complete</button>}
-              {task.type === 'reps' && <div className="flex items-center gap-3"><span className="font-black italic dark:text-white text-slate-900">{task.repsDone}/{task.repsTarget}</span><button onClick={() => task.repsDone + 1 >= task.repsTarget ? onComplete() : onProgress(task.repsDone + 1)} className="px-4 py-2 bg-slate-800 border border-sky-500 text-sky-400 font-bold uppercase text-xs hover:bg-sky-500 hover:text-slate-900 transition-all">+1</button></div>}
-              {task.type === 'duration' && <div className="flex items-center gap-4"><span className="text-xl font-black font-mono dark:text-white text-slate-900">{Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,'0')}</span>{!isRunning ? <button onClick={() => setIsRunning(true)} className="p-3 bg-emerald-500 text-slate-900 font-black uppercase text-xs">Begin</button> : <button onClick={() => { setIsRunning(false); onFail(); }} className="p-3 bg-red-500 text-slate-900 font-black uppercase text-xs">Fail</button>}</div>}
-            </>
+        
+        <div className="flex items-center justify-end gap-5 border-t sm:border-t-0 pt-4 sm:pt-0 border-slate-800/40">
+          {!task.completed ? (
+            <div className="flex items-center gap-4">
+              {task.type === 'checkbox' && (
+                <button onClick={onComplete} className="px-8 py-3 bg-sky-500 text-slate-950 font-black text-xs uppercase italic tracking-[0.2em] shadow-[0_4px_15px_rgba(56,189,248,0.4)] hover:scale-105 active:scale-95 transition-all">CLEAR</button>
+              )}
+              {task.type === 'reps' && (
+                <div className="flex items-center gap-4 bg-slate-800/60 p-2 pl-4 border-2 border-sky-900/40">
+                  <span className="text-sm font-black dark:text-white tabular-nums tracking-widest">{task.repsDone} / {task.repsTarget}</span>
+                  <button onClick={handleRepInc} className="w-10 h-10 flex items-center justify-center bg-sky-500 text-slate-950 font-black text-lg hover:bg-sky-400 transition-colors shadow-lg active:scale-90">+</button>
+                </div>
+              )}
+              {task.type === 'duration' && (
+                <div className="flex items-center gap-4">
+                   <div className={`px-4 py-2 flex items-center gap-5 bg-slate-800/60 border-2 transition-all ${task.timerState === 'running' ? 'border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.3)]' : 'border-sky-900/40'}`}>
+                      <span className="text-lg font-black dark:text-white font-mono tabular-nums leading-none tracking-tighter">{formatTime(task.remainingSeconds)}</span>
+                      <button onClick={onToggleTimer} className={`${task.timerState === 'running' ? 'text-rose-500' : 'text-sky-400'} hover:scale-110 active:scale-90 transition-all`}>
+                        {task.timerState === 'running' ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
+                      </button>
+                   </div>
+                </div>
+              )}
+            </div>
+          ) : (
+             <div className="flex items-center gap-3 text-emerald-500 text-xs font-black uppercase italic animate-pulse">
+               <Award size={20} /> Field Directive Cleared
+             </div>
           )}
-          {task.completed && <CheckCircle2 className="text-emerald-500" size={24} />}
-          {canDelete && !task.completed && <button onClick={onDelete} className="p-2 text-slate-500 hover:text-red-500 transition-colors"><Trash2 size={20} /></button>}
+          
+          <div className="flex items-center gap-2">
+            {!task.completed && (
+              <button 
+                onClick={onEdit} 
+                className="p-2 text-slate-600 hover:text-sky-400 transition-colors hover:scale-110 active:scale-90"
+                title="Evolution Protocol"
+              >
+                <Edit3 size={20} />
+              </button>
+            )}
+            
+            {canDelete ? (
+              <button 
+                onClick={onDelete} 
+                className="p-2 text-slate-600 hover:text-rose-500 transition-colors hover:scale-110 active:scale-90"
+                title="Terminate Directive"
+              >
+                <Trash2 size={22} />
+              </button>
+            ) : (
+              <div className={`p-2 ${task.completed ? 'text-emerald-500' : 'text-rose-500'} opacity-40`} title={task.completed ? "QUEST CLEARED: Record synchronized." : "QUEST HARDENED: Termination forbidden."}>
+                <Lock size={20} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

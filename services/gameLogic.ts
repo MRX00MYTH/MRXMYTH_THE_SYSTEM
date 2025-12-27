@@ -2,16 +2,28 @@
 import { Rank } from '../types';
 import { RANK_THRESHOLDS } from '../constants';
 
+/**
+ * Calculates the EXP required to reach the next level.
+ * Formula: 100 * (1.25 ^ level)
+ * This provides a smooth but scaling difficulty curve.
+ */
 export const getLevelThreshold = (level: number): number => {
-  if (level <= 10) return Math.floor(150 * Math.pow(1.8, level));
-  if (level <= 20) return Math.floor(200 * Math.pow(2.0, level));
-  return Math.floor(250 * Math.pow(2.2, level));
+  // Base requirement is 100. Each level increases requirement by 25%.
+  return Math.floor(100 * Math.pow(1.25, level - 1));
 };
 
+/**
+ * Determines Rank based on total lifetime (cumulative) EXP.
+ */
 export const calculateRank = (cumulativeEXP: number): Rank => {
-  const thresholds = Object.keys(RANK_THRESHOLDS).map(Number).sort((a, b) => b - a);
-  for (const t of thresholds) {
-    if (cumulativeEXP >= t) return RANK_THRESHOLDS[t];
+  const entries = Object.entries(RANK_THRESHOLDS)
+    .map(([exp, rank]) => ({ threshold: Number(exp), rank: rank as Rank }))
+    .sort((a, b) => b.threshold - a.threshold);
+
+  for (const entry of entries) {
+    if (cumulativeEXP >= entry.threshold) {
+      return entry.rank;
+    }
   }
   return 'E';
 };
